@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from charm.toolbox.integergroup import IntegerGroup
 from charm.toolbox.securerandom import OpenSSLRand
-from garbled_circuit import *
-from commitment import Commitment
-from PRNG import PRNG
+from GarbledCircuit.garbled_circuit import *
+from GarbledCircuit.commitment import Commitment
+from GarbledCircuit.PRNG import PRNG
 import sys
 import operator as op
 from functools import reduce
