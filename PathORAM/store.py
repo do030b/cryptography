@@ -1,5 +1,5 @@
-from Crypto import Random
 from PathORAM.aes_ctr import AESCTR
+import math
 
 
 class Store:
@@ -21,16 +21,16 @@ class Store:
 class ListStore(Store):
     def __init__(self, L, Z):
         super().__init__(L, Z)
-        self.random_generator = Random.new()
         self.cipher = AESCTR()
-        self.dummy_block = [0, 0]
+        self.dummy_block = ["0", "0"]
         self.store = [self.cipher.encrypt_block(self.dummy_block)
                       for _ in range((2 ** (self.L + 1) - 1) * self.Z)]
 
     def __repr__(self):
         repr_str = ''
-        for i in range(2**(self.L + 1) - 1):
-            repr_str += 'node[' + str(i) + ']:\n' + '\n'.join(map(str, self.store[i*self.Z: (i+1)*self.Z]))
+        for i in range(2 ** (self.L + 1) - 1):
+            l = math.floor(math.log2(i + 1))
+            repr_str += 'node' + str([l, i-(2**l)+1]) + ':\n\t' + '\n\t'.join(map(str, self.store[i * self.Z: (i + 1) * self.Z]))
             repr_str += '\n'
         return repr_str
 
