@@ -12,45 +12,33 @@ class PathORAM:
         self.N = total
         self.Z = bucket_size
         self.L = math.ceil(math.log2(self.N)) - 1
-
         self.Store = ListStore(self.L, self.Z)
-        self.leaves = 2 ** self.L
-
         self.position_map = dict()
         self.stash = list()
 
     def access(self, op, identifier, new_data=None, pos=None):
-        if identifier in self.position_map.keys():
+        try:
             old_position = self.position_map[identifier]
             self.position_map[identifier] = random.randint(0, 2**self.L - 1) if pos is None else pos
-        else:
+        except KeyError:
             self.position_map[identifier] = random.randint(0, 2**self.L - 1) if pos is None else pos
             old_position = self.position_map[identifier]
 
         for l in range(self.L+1):
-            for block in self.Store.read(old_position, l):
-                if block[0] in self.position_map.keys():
-                    self.stash.append(block)
-
-        data = None
-        for i, d in self.stash:
-            if i == identifier:
-                data = d
+            self.stash.extend([b for b in self.Store.read(old_position, l)
+                               if b[0] in self.position_map.keys()])
 
         if op == OP.write:
-            self.stash = [[i, d] for i, d in self.stash if i != identifier]
-            self.stash.append([identifier, new_data])
+            self.stash = [b for b in self.stash if b[0] != identifier] + [[identifier, new_data]]
+
+        data = [b for b in self.stash if b[0] == identifier][0]
 
         for l in range(self.L, -1, -1):
-            s = list()
-            for i, d in self.stash:
-                if self.Store.path(old_position, l) == self.Store.path(self.position_map[i], l):
-                    s.append([i, d])
-            if len(s) > self.Z:
-                s = s[0:self.Z]
-            s_names = [m for m, n in s]
-            self.stash = [[p, q] for p, q in self.stash if p not in s_names]
-            self.Store.write(old_position, l, s)
+            new_blocks = [b for b in self.stash
+                          if self.Store.path(old_position, l) == self.Store.path(self.position_map[b[0]], l)]
+            new_blocks = new_blocks[0:min(self.Z, len(new_blocks))]
+            self.stash = [b for b in self.stash if b not in new_blocks]
+            self.Store.write(old_position, l, new_blocks)
 
         return data
 
