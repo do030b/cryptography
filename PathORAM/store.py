@@ -23,14 +23,14 @@ class ListStore(Store):
         super().__init__(L, Z)
         self.random_generator = Random.new()
         self.cipher = AESCTR()
-        self.store = [self.cipher.encrypt_block([str(self.random_generator.read(8)),
-                                                 str(self.random_generator.read(8))])
+        self.dummy_block = [0, 0]
+        self.store = [self.cipher.encrypt_block(self.dummy_block)
                       for _ in range((2 ** (self.L + 1) - 1) * self.Z)]
 
     def __repr__(self):
         repr_str = ''
         for i in range(2**(self.L + 1) - 1):
-            repr_str += '[' + str(i) + ']\n' + '\n'.join(map(str, self.store[i*self.Z: (i+1)*self.Z]))
+            repr_str += 'node[' + str(i) + ']:\n' + '\n'.join(map(str, self.store[i*self.Z: (i+1)*self.Z]))
             repr_str += '\n'
         return repr_str
 
@@ -47,11 +47,7 @@ class ListStore(Store):
 
     def write(self, x, l, blocks):
         top = self.path(x, l) * self.Z
-        for n in range(self.Z):
-            a = str(self.random_generator.read(8))
-            d = str(self.random_generator.read(8))
-            self.store[top + n] = self.cipher.encrypt_block([a, d])
-        for n, block in enumerate(blocks):
+        new_bucket = (blocks + self.dummy_block * self.Z)[:self.Z]
+
+        for n, block in enumerate(new_bucket):
             self.store[top + n] = self.cipher.encrypt_block(block)
-
-

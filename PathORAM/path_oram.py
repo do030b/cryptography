@@ -31,7 +31,7 @@ class PathORAM:
         if op == OP.write:
             self.stash = [b for b in self.stash if b[0] != identifier] + [[identifier, new_data]]
 
-        data = [b for b in self.stash if b[0] == identifier][0]
+        data = [b[1] for b in self.stash if b[0] == identifier][0]
 
         for l in range(self.L, -1, -1):
             new_blocks = [b for b in self.stash
