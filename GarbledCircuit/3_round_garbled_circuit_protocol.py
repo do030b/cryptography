@@ -16,6 +16,7 @@ if __name__ == '__main__':
 
     f = (4, 1, 3, {5: 1, 6: 3, 7: 5}, {5: 2, 6: 4, 7: 6}, [op.and_, op.xor, op.or_])
 
+    gc = GarbledCircuit()
     C = Commitment(group)
     pk, sk = C.get_key()
 
@@ -46,8 +47,8 @@ if __name__ == '__main__':
     p1["R"]   = PRNG(p1["k"]).generate_random
     p2["R"]   = PRNG(p2["k"]).generate_random
 
-    p1["e"], p1["F"] = garble_circuit(f, p1["R"])
-    p2["e"], p2["F"] = garble_circuit(f, p2["R"])
+    p1["e"], p1["F"] = gc.garble_circuit(f, p1["R"])
+    p2["e"], p2["F"] = gc.garble_circuit(f, p2["R"])
 
     p1["ce"] = [( C.commitment(pk, e[0], p1["R"]),
                   C.commitment(pk, e[1], p1["R"]) ) for e in p1["e"]]
@@ -82,8 +83,8 @@ if __name__ == '__main__':
     p3["X"] = [d["m"] for d in p3["de"]]
 
     # Check
-    lhs = evaluate_circuit(f, [p1["x1"], p2["x2"], p3["x3"], p3["x4"]])
-    rhs = evaluate_garbled_circuit(p3["F1"], p3["X"])
+    lhs = gc.evaluate_circuit(f, [p1["x1"], p2["x2"], p3["x3"], p3["x4"]])
+    rhs = gc.evaluate_garbled_circuit(p3["F1"], p3["X"])
 
     print("result: ", rhs)
     if rhs == lhs:

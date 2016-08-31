@@ -1,9 +1,9 @@
-from GarbledCircuit import *
+from GarbledCircuit.garbled_circuit import *
 
 from charm.toolbox.integergroup import IntegerGroup
 from charm.toolbox.securerandom import OpenSSLRand
-from commitment import Commitment
-from PRNG import PRNG
+from GarbledCircuit.commitment import Commitment
+from GarbledCircuit.PRNG import PRNG
 import sys
 import operator as op
 
@@ -12,7 +12,8 @@ if __name__ == '__main__':
     group = IntegerGroup()
     group.paramgen(1024)
 
-    f = [op.and_, op.xor, op.or_]
+    f = (4, 1, 3, {5: 1, 6: 3, 7: 5}, {5: 2, 6: 4, 7: 6}, [op.and_, op.xor, op.or_])
+    gc = GarbledCircuit()
 
     C = Commitment(group)
     pk, sk = C.get_key()
@@ -69,8 +70,8 @@ if __name__ == '__main__':
     p2["R1"]   = PRNG(p2["k1"]).generate_random
 
     # Step 2 (1)
-    p2["F1e"], p2["F1GC"] = garbling(f, p2["R3"])
-    p3["F1e"], p3["F1GC"] = garbling(f, p3["R2"])
+    p2["F1e"], p2["F1GC"] = gc.garble_circuit(f, random_func=p2["R3"])
+    p3["F1e"], p3["F1GC"] = gc.garble_circuit(f, random_func=p3["R2"])
 
     p2["F1ce"] = [( C.commitment(pk, e[0], p2["R3"]),
                     C.commitment(pk, e[1], p2["R3"]) ) for e in p2["F1e"]]

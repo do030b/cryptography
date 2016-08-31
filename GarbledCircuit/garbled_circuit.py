@@ -26,6 +26,13 @@ class GarbledCircuit:
 
         return a, b
 
+    def hash(self, obj):
+        """
+        :param obj: target object
+        :return: int
+        """
+        return int(hashlib.sha1(repr(obj).encode('utf-8')).hexdigest(), 16)
+
     def garble_circuit(self, f, random_func=None):
         """
         :param f: f = (n: number of inputs,
@@ -39,38 +46,6 @@ class GarbledCircuit:
         """
         n, m, q, A, B, G = f
         wire = [self.generate_random_pair(random_func) for _ in range(n + q)]
-        # In the output wire, lsb(wire[n]) is n
-        for i in range(n+q-m, n+q):
-            if wire[i][0] & 1:
-                wire[i] = wire[i][::-1]
-
-        table_list = [self.encrypt_table(in1  = wire[A[g]-1],
-                                         in2  = wire[B[g]-1],
-                                         out  = wire[g-1],
-                                         func = G[g-(n+1)])
-                      for g in range(n + 1, n + q + 1)]
-
-        return wire[0:n], tuple(list(f[:-1]) + [table_list])
-
-    def hash(self, obj):
-        """
-        :param obj: target object
-        :return: int
-        """
-        return int(hashlib.sha1(repr(obj).encode('utf-8')).hexdigest(), 16)
-
-    def garble_circuit(self, f):
-        """
-        :param f: f = (n: number of inputs,
-                       m: number of outputs,
-                       q: number of gates,
-                       A: first input,
-                       B: second input,
-                       G: gate symbols)
-        :return: e, F
-        """
-        n, m, q, A, B, G = f
-        wire = [self.generate_random_pair() for _ in range(n + q)]
         # In the output wire, lsb(wire[n]) is n
         for i in range(n+q-m, n+q):
             if wire[i][0] & 1:
