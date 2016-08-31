@@ -9,9 +9,6 @@ class GarbledCircuit:
     def __init__(self):
         pass
 
-    def lsb(self, num):
-        return num & 1
-
     def generate_random_pair(self, random_func=None):
         if random_func is None:
             ssl = OpenSSLRand()
