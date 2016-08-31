@@ -21,15 +21,15 @@ class GarbledCircuitWithBHHO(GarbledCircuit):
     def generate_keys(self, sk=None):
         return self.bhho.generate_key(sk)
 
-    def garble_circuit(self, f, random_func=None):
+    def garble_circuit(self, f):
         n, m, q, A, B, G = f
 
-        e = [self.generate_random_pair_for_BHHO(random_func) for _ in range(n)]
-        wire  = [(int(self.sha1(int(i)), 16), int(self.sha1(int(j)), 16)) for i, j in e]
-        wire += [self.generate_random_pair(random_func) for _ in range(q)]
+        e = [self.generate_random_pair_for_BHHO() for _ in range(n)]
+        wire  = [(self.hash(int(i)), self.hash(int(j))) for i, j in e]
+        wire += [self.generate_random_pair() for _ in range(q)]
         # In the output wire (pair), lsb is (0, 1)
         for i in range(m):
-            if self.lsb(wire[-1-i][0]) == 1:
+            if wire[-1-i][0] & 1 == 1:
                 wire[-1-i] = wire[-1-i][::-1]
 
         table_list = [self.encrypt_table(in1=wire[A[g]-1], in2=wire[B[g]-1], out=wire[g-1], func=G[g-(n+1)])
@@ -37,27 +37,21 @@ class GarbledCircuitWithBHHO(GarbledCircuit):
         # return e, F
         return e, list(f[:-1]) + [table_list]
 
-    def generate_random_pair_for_BHHO(self, random_func=None):
+    def generate_random_pair_for_BHHO(self):
         while(True):
-            if random_func is None:
-                ssl = OpenSSLRand()
-                a   = int.from_bytes(ssl.getRandomBits(160), sys.byteorder)
-                b   = int.from_bytes(ssl.getRandomBits(160), sys.byteorder)
-            else:
-                a = random_func()
-                b = random_func()
+            ssl = OpenSSLRand()
+            a   = int.from_bytes(ssl.getRandomBits(160), sys.byteorder)
+            b   = int.from_bytes(ssl.getRandomBits(160), sys.byteorder)
             # lsb is different from one another
-            k0 = int(self.sha1(int(self.g**a)), 16)
-            k1 = int(self.sha1(int(self.g**b)), 16)
-            if self.lsb(k0) != self.lsb(k1):
+            k0 = self.hash(int(self.g**a))
+            k1 = self.hash(int(self.g**b))
+            if k0 & 1 != k1 & 1:
                 break
 
         return g**a, g**b
 
-    def encode(self, e, x, bit_len=4):
-        if len(x) > bit_len:
-            exit(1)
-        return [int(self.sha1(int(e[i][x[i]])), 16) for i in range(bit_len)]
+    def encode(self, e, x):
+        return [self.hash(int(e[i][x[i]])) for i in range(len(x))]
 
     def encrypt_encode(self, e, x, pk, bit_len=4):
         if len(x) > bit_len:
@@ -65,7 +59,7 @@ class GarbledCircuitWithBHHO(GarbledCircuit):
         return [self.bhho.encrypt(pk, e[i][x[i]]) for i in range(bit_len)]
 
     def decrypt_encode(self, enX, sk):
-        return [int(self.sha1(int(self.bhho.decrypt(sk, c))), 16) for c in enX]
+        return [self.hash(int(self.bhho.decrypt(sk, c))) for c in enX]
 
 
 if __name__ == '__main__':
@@ -107,7 +101,7 @@ if __name__ == '__main__':
 
     while(True):
         e, F = gc.garble_circuit(ID)
-        X = gc.encode(e, [y, 0, 0, 0])
+        X = gc.encode(e, [y[0], 0, 0, 0])
 
         lhs = gc.evaluate_garbled_circuit(f0[:-1]+[F[-1]], X)
         rhs = gc.evaluate_garbled_circuit(f1[:-1]+[F[-1]], X)
@@ -117,7 +111,7 @@ if __name__ == '__main__':
             print("Ev(F, X) = ", gc.evaluate_garbled_circuit(F, X))
             print("Ev(F, topo(f0), X) = ", lhs)
             print("Ev(F, topo(f1), X) = ", rhs)
-            enX = gc.encrypt_encode(e, [y, 0, 0, 0], keys["public_key"])
+            enX = gc.encrypt_encode(e, [y[0], 0, 0, 0], keys["public_key"])
             break
 
     print()

@@ -20,73 +20,146 @@ class GarbledCircuit:
         else:
             a = random_func()
             b = random_func()
-        # lsb is different from one another
-        if self.lsb(a) == self.lsb(b):
-            b += 1
+        # lsb must be different in a and b
+        if a & 1 == b & 1:
+            b ^= 1
 
         return a, b
 
-    def sha1(self, objects):
-        return hashlib.sha1(repr(objects).encode('utf-8')).hexdigest()
-
     def garble_circuit(self, f, random_func=None):
+        """
+        :param f: f = (n: number of inputs,
+                       m: number of outputs,
+                       q: number of gates,
+                       A: first input,
+                       B: second input,
+                       G: gate symbols)
+        :param random_func:
+        :return: e, F
+        """
         n, m, q, A, B, G = f
         wire = [self.generate_random_pair(random_func) for _ in range(n + q)]
-        # In the output wire (pair), lsb is (0, 1)
-        for i in range(m):
-            if self.lsb(wire[-1-i][0]) == 1:
-                wire[-1-i] = wire[-1-i][::-1]
+        # In the output wire, lsb(wire[n]) is n
+        for i in range(n+q-m, n+q):
+            if wire[i][0] & 1:
+                wire[i] = wire[i][::-1]
 
-        table_list = [self.encrypt_table(in1=wire[A[g]-1], in2=wire[B[g]-1], out=wire[g-1], func=G[g-(n+1)])
+        table_list = [self.encrypt_table(in1  = wire[A[g]-1],
+                                         in2  = wire[B[g]-1],
+                                         out  = wire[g-1],
+                                         func = G[g-(n+1)])
                       for g in range(n + 1, n + q + 1)]
-        # return e, F
+
+        return wire[0:n], tuple(list(f[:-1]) + [table_list])
+
+    def hash(self, obj):
+        """
+        :param obj: target object
+        :return: int
+        """
+        return int(hashlib.sha1(repr(obj).encode('utf-8')).hexdigest(), 16)
+
+    def garble_circuit(self, f):
+        """
+        :param f: f = (n: number of inputs,
+                       m: number of outputs,
+                       q: number of gates,
+                       A: first input,
+                       B: second input,
+                       G: gate symbols)
+        :return: e, F
+        """
+        n, m, q, A, B, G = f
+        wire = [self.generate_random_pair() for _ in range(n + q)]
+        # In the output wire, lsb(wire[n]) is n
+        for i in range(n+q-m, n+q):
+            if wire[i][0] & 1:
+                wire[i] = wire[i][::-1]
+
+        table_list = [self.encrypt_table(in1  = wire[A[g]-1],
+                                         in2  = wire[B[g]-1],
+                                         out  = wire[g-1],
+                                         func = G[g-(n+1)])
+                      for g in range(n + 1, n + q + 1)]
+
         return wire[0:n], tuple(list(f[:-1]) + [table_list])
 
     def encrypt_table(self, in1, in2, out, func):
-        table = [[int(self.sha1((r, c)), 16) ^ out[func(i, j)] for j, c in enumerate(in2)]
+        """
+        :param in1:  input_wire_1
+        :param in2:  input_wire_2
+        :param out:  output_wire
+        :param func: gate_function
+        :return: garbled table
+        """
+        table = [[self.hash((r, c)) ^ out[func(i, j)]
+                  for j, c in enumerate(in2)]
                  for i, r in enumerate(in1)]
-        if self.lsb(in1[0]) == 1:
+        if in1[0] & 1:
             table[0], table[1] = table[1], table[0]
-        if self.lsb(in2[0]) == 1:
+        if in2[0] & 1:
             table[0][0], table[0][1] = table[0][1], table[0][0]
             table[1][0], table[1][1] = table[1][1], table[1][0]
         return table
 
     def evaluate_circuit(self, f, x):
+        """
+        :param f: f = (n: number of inputs,
+                       m: number of outputs,
+                       q: number of gates,
+                       A: first input,
+                       B: second input,
+                       G: gate symbols)
+        :param x: inputs of the circuit
+        :return: outputs of the circuit
+        """
         n, m, q, A, B, G = f
-        x_ = list(x[:])
-        for g in range(n + 1, n + q + 1):
+        # input_wires  = (x_[i] | 1<=i<=n),
+        # inner_wires  = (x_[i] | n+1<=i<=n+q-m),
+        # output_wires = (x_[i] | n+q-m+1<=i<=n+q)
+        x_ = [-1] + list(x[:]) + [-1]*q
+        for g in range(n+1, n+q+1):
             a, b = A[g], B[g]
-            x_.append(G[g - (n + 1)](x_[a - 1], x_[b - 1]))
-        return self.lsb(x_[-1])
+            x_[g] = G[g-(n+1)](x_[a], x_[b])
+        return [x_[i] & 1 for i in range(n+q-m+1, n+q+1)]
 
     def evaluate_garbled_circuit(self, F, X):
+        """
+        :param F: F = (n: number of inputs,
+                       m: number of outputs,
+                       q: number of gates,
+                       A: first input,
+                       B: second input,
+                       G: gate symbols)
+        :param X: garbled inputs of the circuit
+        :return: outputs of the circuit
+        """
         n, m, q, A, B, G = F
-        X_ = list(X[:])
-        for g in range(n + 1, n + q + 1):
+        # input_wires  = (X_[i] | 1<=i<=n),
+        # inner_wires  = (X_[i] | n+1<=i<=n+q-m),
+        # output_wires = (X_[i] | n+q-m+1<=i<=n+q)
+        X_ = [-1] + list(X[:]) + [-1]*q
+        for g in range(n+1, n+q+1):
             a, b = A[g], B[g]
-            X_.append(G[g - (n + 1)][self.lsb(X_[a - 1])][self.lsb(X_[b - 1])] ^
-                      int(self.sha1((X_[a - 1], X_[b - 1])), 16))
-        return self.lsb(X_[-1])
+            X_[g] = G[g-(n+1)][X_[a] & 1][X_[b] & 1] ^ self.hash((X_[a], X_[b]))
+        return [X_[i] & 1 for i in range(n+q-m+1, n+q+1)]
 
-    def encode(self, e, x, bit_len=4):
-        if len(x) > bit_len:
-            exit(1)
-        return [e[i][x[i]] for i in range(bit_len)]
-
-    def check(self, f, x):
-        e, F = self.garble_circuit(f)
-        X = self.encode(e, x)
-        lhs = self.evaluate_circuit(f, x)
-        rhs = self.evaluate_garbled_circuit(F, X)
-        return lhs == rhs
+    def encode(self, e, x):
+        return [e[i][x[i]] for i in range(len(x))]
 
 
 if __name__ == '__main__':
     from itertools import product
     from functools import reduce
+
+    def check(gc, f, x):
+        e, F = gc.garble_circuit(f)
+        X = gc.encode(e, x)
+        lhs = gc.evaluate_circuit(f, x)
+        rhs = gc.evaluate_garbled_circuit(F, X)
+        return lhs == rhs
+
     f = (4, 1, 3, {5: 1, 6: 3, 7: 5}, {5: 2, 6: 4, 7: 6}, [op.and_, op.xor, op.or_])
     gc = GarbledCircuit()
+    print(reduce(op.and_, [check(gc, f, i) for i in product((0, 1), repeat=4)]))
 
-    print(reduce(op.and_, [reduce(op.and_, [gc.check(f, i) for i in product((0, 1), repeat=4)])
-                           for _ in range(100)]))
