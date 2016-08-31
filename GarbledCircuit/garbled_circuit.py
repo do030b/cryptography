@@ -48,23 +48,25 @@ class GarbledCircuit:
             if wire[i][0] & 1:
                 wire[i] = wire[i][::-1]
 
-        table_list = [self.encrypt_table(in1  = wire[A[g]-1],
-                                         in2  = wire[B[g]-1],
-                                         out  = wire[g-1],
-                                         func = G[g-(n+1)])
+        table_list = [self.encrypt_table(in1   = wire[A[g]-1],
+                                         in2   = wire[B[g]-1],
+                                         out   = wire[g-1],
+                                         index = g,
+                                         func  = G[g-(n+1)])
                       for g in range(n + 1, n + q + 1)]
 
         return wire[0:n], tuple(list(f[:-1]) + [table_list])
 
-    def encrypt_table(self, in1, in2, out, func):
+    def encrypt_table(self, in1, in2, out, index, func):
         """
         :param in1:  input_wire_1
         :param in2:  input_wire_2
         :param out:  output_wire
+        :param index: index of output_wire
         :param func: gate_function
         :return: garbled table
         """
-        table = [[self.hash((r, c)) ^ out[func(i, j)]
+        table = [[self.hash((r, c, (index, r & 1, c & 1))) ^ out[func(i, j)]
                   for j, c in enumerate(in2)]
                  for i, r in enumerate(in1)]
         if in1[0] & 1:
@@ -113,7 +115,7 @@ class GarbledCircuit:
         X_ = [-1] + list(X[:]) + [-1]*q
         for g in range(n+1, n+q+1):
             a, b = A[g], B[g]
-            X_[g] = G[g-(n+1)][X_[a] & 1][X_[b] & 1] ^ self.hash((X_[a], X_[b]))
+            X_[g] = G[g-(n+1)][X_[a] & 1][X_[b] & 1] ^ self.hash((X_[a], X_[b], (g, X_[a] & 1, X_[b] & 1)))
         return [X_[i] & 1 for i in range(n+q-m+1, n+q+1)]
 
     def encode(self, e, x):
