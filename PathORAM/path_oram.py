@@ -101,7 +101,7 @@ class Client:
 if __name__ == '__main__':
     N = 8
     Z = 4
-    L = math.ceil(math.log2(4)) - 1,
+    L = math.ceil(math.log2(4)) - 1
     s = Server(N, Z)
     p = Client(s)
     p.access(OP.write, b"hello1", new_data=b"hello_world 1")
