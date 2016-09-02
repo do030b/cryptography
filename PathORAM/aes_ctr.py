@@ -15,7 +15,7 @@ class AESCTR:
     def encrypt(self, plain_text):
         nonce   = Random.new().read(AES.block_size//2)
         cipher_text = b''
-        num_of_chunk = len(plain_text) // AES.block_size + 1
+        num_of_chunk = ceil(len(plain_text)/AES.block_size)
 
         for i in range(num_of_chunk):
             chunk = int.from_bytes(plain_text[i*AES.block_size: (i+1)*AES.block_size], 'big')
