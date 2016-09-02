@@ -75,10 +75,9 @@ class Client:
     def access(self, op, identifier, new_data=None):
         try:
             old_position = self.position_map[identifier]
-            self.position_map[identifier] = random.randint(0, 2**self.L - 1)
         except KeyError:
-            self.position_map[identifier] = random.randint(0, 2**self.L - 1)
-            old_position = self.position_map[identifier]
+            old_position = random.randint(0, 2**self.L - 1)
+        self.position_map[identifier] = random.randint(0, 2**self.L - 1)
 
         for l in range(self.L+1):
             self.stash.extend([b for b in self.read_bucket(old_position, l)
