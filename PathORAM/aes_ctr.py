@@ -3,41 +3,48 @@ from Crypto import Random
 
 
 class AESCTR:
-    def __init__(self, block_size=16, key=None):
-        assert block_size in (16, 24, 32)
-        self.BLOCK_SIZE = block_size
+    def __init__(self, key_size=16, key=None):
+        assert key_size in (16, 24, 32)
+        self.key_size = key_size
 
         if key is None:
-            self.key = Random.new().read(self.BLOCK_SIZE)
+            self.key = Random.new().read(AES.block_size)
         self.block_cipher = AES.new(self.key, AES.MODE_ECB)
 
     def encrypt(self, plain_text):
-        nonce   = Random.new().read(self.BLOCK_SIZE//2)
+        nonce   = Random.new().read(AES.block_size//2)
         cipher_text = b''
-        num_of_chunk = len(plain_text) // self.BLOCK_SIZE + 1
+        num_of_chunk = len(plain_text) // AES.block_size + 1
 
         for i in range(num_of_chunk):
-            chunk = int.from_bytes(plain_text[i*self.BLOCK_SIZE: (i+1)*self.BLOCK_SIZE], 'big')
-            en = self.block_cipher.encrypt(nonce + i.to_bytes(self.BLOCK_SIZE//2, 'big'))
+            chunk = int.from_bytes(plain_text[i*AES.block_size: (i+1)*AES.block_size], 'big')
+            en = self.block_cipher.encrypt(nonce + i.to_bytes(AES.block_size//2, 'big'))
             c = int.from_bytes(en, 'big') ^ chunk
-            cipher_text += c.to_bytes(self.BLOCK_SIZE, 'big')
+            cipher_text += c.to_bytes(AES.block_size, 'big')
 
         return nonce + cipher_text
 
     def decrypt(self, cipher_block):
-        nonce = cipher_block[0:self.BLOCK_SIZE//2]
-        cipher_text = cipher_block[self.BLOCK_SIZE//2:]
-        num_of_chunk = len(cipher_text) // self.BLOCK_SIZE
+        nonce = cipher_block[0:AES.block_size//2]
+        cipher_text = cipher_block[AES.block_size//2:]
+        num_of_chunk = len(cipher_text) // AES.block_size
 
         plain_text = b''
         for i in range(num_of_chunk):
-            chunk = int.from_bytes(cipher_text[i*self.BLOCK_SIZE: (i+1)*self.BLOCK_SIZE], 'big')
-            c = self.block_cipher.encrypt(nonce + i.to_bytes(self.BLOCK_SIZE//2, 'big'))
+            chunk = int.from_bytes(cipher_text[i*AES.block_size: (i+1)*AES.block_size], 'big')
+            c = self.block_cipher.encrypt(nonce + i.to_bytes(AES.block_size//2, 'big'))
             m  = int.from_bytes(c, 'big') ^ chunk
-            plain_text += m.to_bytes(self.BLOCK_SIZE, 'big')[self.BLOCK_SIZE-(len(bin(m))-2)//8-1:]
+            plain_text += m.to_bytes(AES.block_size, 'big')[AES.block_size-(len(bin(m))-2)//8-1:]
 
         return plain_text
 
 
 if __name__ == '__main__':
-    pass
+    cipher = AESCTR(24)
+    p = b"hello world!"
+    c = cipher.encrypt(p)
+    d = cipher.decrypt(c)
+
+    print(p)
+    print(c)
+    print(d)
