@@ -1,5 +1,6 @@
 import Crypto.Cipher.AES as AES
 from Crypto import Random
+from math import ceil
 
 
 class AESCTR:
@@ -34,7 +35,7 @@ class AESCTR:
             chunk = int.from_bytes(cipher_text[i*AES.block_size: (i+1)*AES.block_size], 'big')
             c = self.block_cipher.encrypt(nonce + i.to_bytes(AES.block_size//2, 'big'))
             m  = int.from_bytes(c, 'big') ^ chunk
-            plain_text += m.to_bytes(AES.block_size, 'big')[AES.block_size-(len(bin(m))-2)//8-1:]
+            plain_text += m.to_bytes(ceil((len(bin(m))-2)/8), 'big')
 
         return plain_text
 
