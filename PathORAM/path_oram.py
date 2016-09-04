@@ -8,23 +8,23 @@ OP = Enum('OP', 'read write')
 
 
 class Server:
-    def __init__(self, N, Z):
+    def __init__(self, N, Z, recursion_size=None):
+        self.N = N
+        self.L = math.ceil(math.log2(N)) - 1
+        self.Z = Z
+        self.T = [Store(self.N, self.Z) for _ in range(self.L if recursion_size is None else recursion_size+1)]
+
+
+class Store:
+    def __init__(self, N, Z, blocks=None):
         self.N = N
         self.L = math.ceil(math.log2(N)) - 1
         self.Z = Z
         self.total = self.Z*(2**(self.L+1)-1)
-        self.store = None
+        self.store = blocks
 
     def initialize(self, blocks):
         self.store = blocks
-
-    def __repr__(self):
-        repr_str = ''
-        for i in range(2 ** (self.L + 1) - 1):
-            l = math.floor(math.log2(i + 1))
-            repr_str += 'node' + str([l, i-(2**l)+1]) + ':\n\t' + '\n\t'.join(map(str, self.store[i * self.Z: (i + 1) * self.Z]))
-            repr_str += '\n'
-        return repr_str
 
     def path(self, x, l):
         index = 2 ** self.L + x
@@ -50,81 +50,78 @@ class Client:
         self.Z = server.Z
         self.L = server.L
         self.cipher = AESCTR()
-        self.position_map = dict()
+        self.position_map = [random.randint(0, 2**self.L - 1) for _ in range(2**(self.L+1))]
         self.stash = list()
-        self.dummy_block = [b"0", b"0"]
+        self.dummy_block = [0, 0]
         self.initialize()
 
     def encrypt_block(self, block):
-        return [self.cipher.encrypt(v) for v in block]
+        return [self.cipher.encrypt(bin(v)[2:].encode().zfill(self.L+1)) for v in block ]
 
     def decrypt_block(self, block):
-        return [self.cipher.decrypt(v) for v in block]
+        return [int(self.cipher.decrypt(v), 2) for v in block ]
 
-    def initialize(self):
-        self.Server.initialize([self.encrypt_block(self.dummy_block)
-                                for _ in range(self.Server.total)])
+    def initialize(self, recuresion_size=0):
+        for i in range(recuresion_size+1):
+            self.Server.T[i].initialize([self.encrypt_block(self.dummy_block)
+                                         for _ in range(self.Server.T[i].total)])
 
-    def read_bucket(self, x, l):
-        return [self.decrypt_block(block) for block in self.Server.read_bucket(x, l)]
+    def read_bucket(self, x, l, i):
+        return [self.decrypt_block(block) for block in self.Server.T[i].read_bucket(x, l)]
 
-    def write_bucket(self, x, l, blocks):
+    def write_bucket(self, x, l, blocks, i):
         new_bucket = blocks + [self.dummy_block] * (self.Z-len(blocks))
-        self.Server.write_bucket(x, l, [self.encrypt_block(block) for block in new_bucket])
+        self.Server.T[i].write_bucket(x, l, [self.encrypt_block(block) for block in new_bucket])
 
-    def access(self, op, identifier, new_data=None):
-        try:
-            old_position = self.position_map[identifier]
-        except KeyError:
-            old_position = random.randint(0, 2**self.L - 1)
+    def access(self, op, identifier, i=0, new_data=None):
+        old_position = self.position_map[identifier]
         self.position_map[identifier] = random.randint(0, 2**self.L - 1)
 
         for l in range(self.L+1):
-            self.stash.extend([b for b in self.read_bucket(old_position, l)
-                               if b[0] in self.position_map.keys()])
+            self.stash.extend([b for b in self.read_bucket(old_position, l, i)
+                               if b[0] in range(1, 2**self.L+1)])
 
         if op == OP.write:
-            self.stash = [b for b in self.stash if b[0] != identifier] + [[identifier, new_data]]
+            self.stash = [b for b in self.stash if b[0] != identifier] + [[identifier, int.from_bytes(new_data, 'big')]]
 
-        data = [b[1] for b in self.stash if b[0] == identifier][0]
+        data = [b[1] for b in self.stash if b[0] == identifier][0] if op == OP.read else int.from_bytes(new_data, 'big')
 
         for l in range(self.L, -1, -1):
             new_blocks = [b for b in self.stash
-                          if self.Server.path(old_position, l) == self.Server.path(self.position_map[b[0]], l)]
+                          if self.Server.T[i].path(old_position, l) == self.Server.T[i].path(self.position_map[b[0]], l)]
             new_blocks = new_blocks[0:min(self.Z, len(new_blocks))]
             self.stash = [b for b in self.stash if b not in new_blocks]
-            self.write_bucket(old_position, l, new_blocks)
+            self.write_bucket(old_position, l, new_blocks, i)
 
-        return data
+        return data.to_bytes(math.ceil((len(bin(data))-2)/8), 'big')
 
 
 if __name__ == '__main__':
     N = 8
     Z = 4
-    L = math.ceil(math.log2(4)) - 1
-    s = Server(N, Z)
+    L = math.ceil(math.log2(N)) - 1
+    s = Server(N, Z, 0)
     p = Client(s)
-    p.access(OP.write, b"hello1", new_data=b"hello_world 1")
-    p.access(OP.write, b"hello2", new_data=b"hello_world 2")
-    p.access(OP.write, b"hello3", new_data=b"hello_world 3")
-    p.access(OP.write, b"hello4", new_data=b"hello_world 4")
-    print(p.Server)
+    print(p.access(OP.write, 1, new_data=b"hello_world 1"))
+    print(p.access(OP.write, 2, new_data=b"hello_world 2"))
+    print(p.access(OP.write, 3, new_data=b"hello_world 3"))
+    print(p.access(OP.write, 4, new_data=b"hello_world 4"))
     print(p.position_map)
-    print(p.access(OP.read, b"hello1"))
-    print(p.access(OP.read, b"hello2"))
-    print(p.access(OP.read, b"hello3"))
-    print(p.access(OP.read, b"hello4"))
-    print(p.access(OP.read, b"hello1"))
-    print(p.access(OP.read, b"hello2"))
-    print(p.access(OP.read, b"hello3"))
-    print(p.access(OP.read, b"hello4"))
-    p.access(OP.write, b"hello1", new_data=b"new 1")
-    p.access(OP.write, b"hello4", new_data=b"new 4")
-    print(p.access(OP.read, b"hello1"))
-    print(p.access(OP.read, b"hello2"))
-    print(p.access(OP.read, b"hello3"))
-    print(p.access(OP.read, b"hello4"))
-    print(p.access(OP.read, b"hello1"))
-    print(p.access(OP.read, b"hello2"))
-    print(p.access(OP.read, b"hello3"))
-    print(p.access(OP.read, b"hello4"))
+    print(p.access(OP.read, 1))
+    print(p.access(OP.read, 2))
+    print(p.access(OP.read, 3))
+    print(p.access(OP.read, 4))
+    print(p.access(OP.read, 1))
+    print(p.access(OP.read, 2))
+    print(p.access(OP.read, 3))
+    print(p.access(OP.read, 4))
+    p.access(OP.write, 1, new_data=b"new 1")
+    p.access(OP.write, 4, new_data=b"new 4")
+    print(p.access(OP.read, 1))
+    print(p.access(OP.read, 2))
+    print(p.access(OP.read, 3))
+    print(p.access(OP.read, 4))
+    print(p.access(OP.read, 1))
+    print(p.access(OP.read, 2))
+    print(p.access(OP.read, 3))
+    print(p.access(OP.read, 4))
