@@ -30,10 +30,13 @@ class FullySecureFE:
             G.paramgen(λ+1)
             if G.p > 2**λ:
                 break
+        # g, h <- G
         g = G.randomGen()
         h = G.randomGen()
 
+        # msk := {(si, ti) | si, ti <- Zq, 1<=i<=l}
         self.msk = [(G.random(), G.random()) for _ in range(l)]
+        # mpk := (G, g, h, {hi|1<=i<=l})
         self.mpk = [G, g, h, [(g**si)*(h**ti) for si, ti in self.msk]]
 
     def vectorgen(self):
@@ -64,8 +67,6 @@ class FullySecureFE:
         Ex = numer / denom
 
         return Ex, g
-
-
 
 
 def main():
