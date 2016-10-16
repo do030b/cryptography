@@ -1,0 +1,7 @@
+hello!
+
+this is D1 text file.
+
+i have word1.
+
+bye!
