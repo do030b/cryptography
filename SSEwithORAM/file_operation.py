@@ -4,6 +4,7 @@ import sys
 import io
 from Crypto.Cipher import AES
 from Crypto import Random
+import os
 
 
 def padding(s):
@@ -44,7 +45,12 @@ def decrypt(cipher_text, secret_key):
 def encrypt_file(input_file_name, secret_key):
     with io.BytesIO() as zip_file:
         with zipfile.ZipFile(zip_file, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.write(input_file_name)
+            old_cwd = os.getcwd()
+            new_cwd = os.path.dirname(input_file_name)
+            file_name = os.path.basename(input_file_name)
+            os.chdir(new_cwd)
+            zf.write(file_name)
+            os.chdir(old_cwd)
         cipher_text = encrypt(zip_file.getvalue(), secret_key)
     return cipher_text
 
@@ -54,7 +60,8 @@ def decrypt_file(cipher_text, secret_key, output_dir='./'):
     with io.BytesIO(plain_text) as zip_file:
         with zipfile.ZipFile(zip_file) as zf:
             zf.extractall(output_dir)
-            output_file_name_list = zf.namelist()
+            output_file_name_list = [output_dir + name for name in zf.namelist()]
+
     return output_file_name_list
 
 
