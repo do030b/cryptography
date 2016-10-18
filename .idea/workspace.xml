@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="67bc53ff-e758-409e-bb89-609efcf23bed" name="Default" comment="">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/AES_based_CSPRNG.py" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/base_SSE.py" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/file_operation.py" afterPath="" />
-    </list>
+    <list default="true" id="67bc53ff-e758-409e-bb89-609efcf23bed" name="Default" comment="" />
     <ignored path="cryptography.iws" />
     <ignored path=".idea/workspace.xml" />
     <ignored path=".idea/dataSources.local.xml" />
