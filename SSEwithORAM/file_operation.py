@@ -13,6 +13,11 @@ def padding(s):
     return s + bytes([padding_size]) * padding_size
 
 
+def suppress(padded):
+    # pkcs7
+    return padded[:-padded[-1]]
+
+
 def encrypt(plain_text, secret_key):
     padded_text  = padding(plain_text)
     iv = Random.new().read(AES.block_size)
