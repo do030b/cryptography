@@ -3,8 +3,13 @@ import math
 from enum import Enum
 import random
 from PathORAM.aes_ctr import AESCTR
+from collections.abc import Sequence
 
 OP = Enum('OP', 'read write')
+
+
+def split_iterable(iterable, based):
+    return zip(*[iter(iterable)] * based)
 
 
 class Server:
@@ -15,13 +20,78 @@ class Server:
         self.T = Store(self.N, self.Z)
 
 
+class Bucket(Sequence):
+    __slots__ = ['bucket']
+
+    def __init__(self, bucket_size, default=None):
+        self.bucket = [default for _ in range(bucket_size)]
+
+    def __getitem__(self, index):
+        return self.bucket[index]
+
+    def __setitem__(self, key, value):
+        self.bucket[key] = value
+
+    def __len__(self):
+        return len(self.bucket)
+
+    def __repr__(self):
+        return str(self.bucket)
+
+
+class Node:
+    __slots__ = ['value', 'parent', 'left', 'right']
+
+    def __init__(self, value, parent=None, left=None, right=None):
+        self.value  = value
+        self.parent = parent
+        self.left   = left
+        self.right  = right
+
+    def connect_left(self, left_child):
+        self.left = left_child
+        left_child.parent = self
+
+    def connect_right(self, right_child):
+        self.right = right_child
+        right_child.parent = self
+
+
+class Tree(Sequence):
+
+    def __init__(self, N, Z):
+        self.tree = [Bucket(Z) for _ in range((2**(L+1)-1))]
+        self.N = N
+        self.Z = Z
+        self.L = math.ceil(math.log2(N)) - 1
+
+    def __getitem__(self, index):
+        return self.tree[index]
+
+    def __setitem__(self, index, bucket):
+        assert len(bucket) == self.Z
+        for i, block in enumerate(bucket):
+            self.tree[index][i] = block
+
+    def __len__(self):
+        return len(self.tree)
+
+    def initialize(self, blocks):
+        assert len(blocks) & 3  == 0
+        for i, bucket in enumerate(split_iterable(blocks, based=self.Z)):
+            self.tree[i] = bucket
+
+
 class Store:
     def __init__(self, N, Z, blocks=None):
         self.N = N
         self.L = math.ceil(math.log2(N)) - 1
         self.Z = Z
         self.total = self.Z*(2**(self.L+1)-1)
-        self.store = blocks
+        self.store = [[None]*self.Z]*(2**(self.L+1)-1) if blocks is None else blocks
+
+    def __getitem__(self, index):
+        return self.store[index]
 
     def initialize(self, blocks):
         self.store = blocks

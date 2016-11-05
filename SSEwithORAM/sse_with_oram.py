@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from PathORAM import recursive_path_oram as oram
+import time
 
 
 class Server:
@@ -9,17 +10,21 @@ class Server:
 
 
 class Client:
-    def __init__(self, server):
+    def __init__(self, server, key):
         self.server = server
-        self.data_oram = oram.Client(self.server.data_oram)
-        self.index_oram = oram.Client(self.server.index_oram)
+        self.data_oram = oram.Client(self.server.data_oram, key)
+        self.index_oram = oram.Client(self.server.index_oram, key)
         self.num_of_data = None
 
     def initialize(self, word_list, data_list):
         self.num_of_data = len(data_list)
         index_list = [int(''.join([str(int(w in d)) for d in data_list]), 2) for w in word_list]
+        s = time.time()
         self.data_oram.initialize(data_list)
+        print(time.time() - s)
+        s = time.time()
         self.index_oram.initialize(index_list)
+        print(time.time() - s)
 
     def search(self, word_id):
         index = self.index_oram.access(oram.OP.read, word_id)
@@ -29,6 +34,7 @@ class Client:
 
 
 if __name__ == '__main__':
+    import time
 
     D = ["word1 is here.",
          "i have word2",
@@ -39,11 +45,19 @@ if __name__ == '__main__':
     W = ["word1",
          "word2"]
 
-    Nd = Ni = 8
+    Nd = 2**10
+    Ni = 2**12
 
     s = Server(Nd, Ni)
-    c = Client(s)
+    c = Client(s, b'1234567890123456')
+    start_setup = time.time()
     c.initialize(W, D)
+    end_setup = time.time()
 
-    for w in W:
-        print(w, ':', c.search(W.index(w) + 1))
+    print(end_setup - start_setup)
+    for _ in range(10):
+        for w in W:
+            # start_search = time.time()
+            print(w, ':', c.search(W.index(w) + 1))
+            # end_search = time.time()
+            # print(end_search - start_search)

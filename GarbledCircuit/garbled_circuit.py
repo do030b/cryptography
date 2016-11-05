@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-from charm.toolbox.securerandom import OpenSSLRand
-import sys
 import hashlib
 import operator as op
+from Crypto.Random import random
 
 
 class GarbledCircuit:
@@ -11,9 +10,9 @@ class GarbledCircuit:
 
     def generate_random_pair(self, random_func=None):
         if random_func is None:
-            ssl = OpenSSLRand()
-            a   = int.from_bytes(ssl.getRandomBits(160), sys.byteorder)
-            b   = int.from_bytes(ssl.getRandomBits(160), sys.byteorder)
+            rand = random.StrongRandom()
+            a = rand.getrandbits(160)
+            b = rand.getrandbits(160)
         else:
             a = random_func()
             b = random_func()
